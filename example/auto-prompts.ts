@@ -34,7 +34,7 @@ const client = new Midjourney({
   ServerId: <string>process.env.SERVER_ID,
   ChannelId: <string>process.env.CHANNEL_ID,
   SalaiToken: <string>process.env.SALAI_TOKEN,
-  Debug: true,
+  Debug: false,
   Ws: true,
 });
 
@@ -165,7 +165,7 @@ async function checkingNewPrompts() {
   }
 }
 
-const seconds = 10;
+const seconds = 5;
 
 const intervalID = setTimeout(() => {
   try{
@@ -173,7 +173,7 @@ const intervalID = setTimeout(() => {
   }
   catch (e){
     console.log(e);
-    checkingNewPrompts();
+    intervalID.refresh();
   }
   
 }, seconds * 1000);
