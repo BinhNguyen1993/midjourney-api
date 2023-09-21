@@ -20,7 +20,7 @@ import {
   formatPrompts,
   nextNonce,
   uriToHash,
-} from "./utls";
+} from "./utils";
 import { VerifyHuman } from "./verify.human";
 import WebSocket from "isomorphic-ws";
 export class WsMessage {
@@ -38,6 +38,7 @@ export class WsMessage {
     this.ws.addEventListener("open", this.open.bind(this));
     this.onSystem("messageCreate", this.onMessageCreate.bind(this));
     this.onSystem("messageUpdate", this.onMessageUpdate.bind(this));
+    this.onSystem("messageDelete", this.onMessageDelete.bind(this));
     this.onSystem("ready", this.onReady.bind(this));
     this.onSystem("interactionSuccess", this.onInteractionSuccess.bind(this));
   }
@@ -202,12 +203,18 @@ export class WsMessage {
           this.emit("settings", message);
           return;
         case "describe":
-          // console.log("describe", "meseesage", message);
+          let uri = embeds?.[0]?.image?.url;
+          if (this.config.ImageProxy !== "") {
+            uri = uri.replace(
+              "https://cdn.discordapp.com/",
+              this.config.ImageProxy
+            );
+          }
           const describe: MJDescribe = {
             id: id,
             flags: message.flags,
             descriptions: embeds?.[0]?.description.split("\n\n"),
-            uri: embeds?.[0]?.image?.url,
+            uri: uri,
             proxy_url: embeds?.[0]?.image?.proxy_url,
             options: formatOptions(components),
           };
@@ -270,7 +277,7 @@ export class WsMessage {
     if (channel_id !== this.config.ChannelId) return;
     if (author?.id !== this.config.BotId) return;
     if (interaction && interaction.user.id !== this.UserId) return;
-    this.log("[messageCreate]", JSON.stringify(message));
+    // this.log("[messageCreate]", JSON.stringify(message));
     this.messageCreate(message);
   }
 
@@ -279,8 +286,17 @@ export class WsMessage {
     if (channel_id !== this.config.ChannelId) return;
     if (author?.id !== this.config.BotId) return;
     if (interaction && interaction.user.id !== this.UserId) return;
-    this.log("[messageUpdate]", JSON.stringify(message));
+    // this.log("[messageUpdate]", JSON.stringify(message));
     this.messageUpdate(message);
+  }
+  private async onMessageDelete(message: any) {
+    const { channel_id, id } = message;
+    if (channel_id !== this.config.ChannelId) return;
+    for (const [key, value] of this.waitMjEvents.entries()) {
+      if (value.id === id) {
+        this.waitMjEvents.set(key, { ...value, del: true });
+      }
+    }
   }
 
   // parse message from ws
@@ -290,6 +306,9 @@ export class WsMessage {
       return;
     }
     const message = msg.d;
+    if (message.channel_id === this.config.ChannelId) {
+      this.log(data);
+    }
     this.log("event", msg.t);
     // console.log(data);
     switch (msg.t) {
@@ -302,6 +321,8 @@ export class WsMessage {
       case "MESSAGE_UPDATE":
         this.emitSystem("messageUpdate", message);
         break;
+      case "MESSAGE_DELETE":
+        this.emitSystem("messageDelete", message);
       case "INTERACTION_SUCCESS":
         if (message.nonce) {
           this.emitSystem("interactionSuccess", message);
@@ -328,6 +349,7 @@ export class WsMessage {
       });
       this.log("appeal.httpStatus", httpStatus);
       if (httpStatus == 204) {
+        //todo
         this.on(newnonce, (data) => {
           this.emit(nonce, data);
         });
@@ -378,15 +400,23 @@ export class WsMessage {
 
   private done(message: any) {
     const { content, id, attachments, components, flags } = message;
+    const { url, proxy_url, width, height } = attachments[0];
+    let uri = url;
+    if (this.config.ImageProxy !== "") {
+      uri = uri.replace("https://cdn.discordapp.com/", this.config.ImageProxy);
+    }
+
     const MJmsg: MJMessage = {
       id,
       flags,
       content,
-      hash: uriToHash(attachments[0].url),
+      hash: uriToHash(url),
       progress: "done",
-      uri: attachments[0].url,
-      proxy_url: attachments[0].proxy_url,
+      uri,
+      proxy_url,
       options: formatOptions(components),
+      width,
+      height,
     };
     this.filterMessages(MJmsg);
     return;
@@ -405,8 +435,13 @@ export class WsMessage {
     if (!attachments || attachments.length === 0) {
       return;
     }
+
+    let uri = attachments[0].url;
+    if (this.config.ImageProxy !== "") {
+      uri = uri.replace("https://cdn.discordapp.com/", this.config.ImageProxy);
+    }
     const MJmsg: MJMessage = {
-      uri: attachments[0].url,
+      uri: uri,
       proxy_url: attachments[0].proxy_url,
       content: content,
       flags: flags,
@@ -418,7 +453,9 @@ export class WsMessage {
     this.emitImage(event.nonce, eventMsg);
   }
 
-  private filterMessages(MJmsg: MJMessage) {
+  private async filterMessages(MJmsg: MJMessage) {
+    // delay 300ms for discord message delete
+    await this.timeout(300);
     const event = this.getEventByContent(MJmsg.content);
     if (!event) {
       this.log("FilterMessages not found", MJmsg, this.waitMjEvents);
@@ -431,6 +468,16 @@ export class WsMessage {
   }
   private getEventByContent(content: string) {
     const prompt = content2prompt(content);
+    //fist del message
+    for (const [key, value] of this.waitMjEvents.entries()) {
+      if (
+        value.del === true &&
+        prompt === content2prompt(value.prompt as string)
+      ) {
+        return value;
+      }
+    }
+
     for (const [key, value] of this.waitMjEvents.entries()) {
       if (prompt === content2prompt(value.prompt as string)) {
         return value;
@@ -483,7 +530,13 @@ export class WsMessage {
     this.event.push({ event, callback });
   }
   onSystem(
-    event: "ready" | "messageCreate" | "messageUpdate" | "interactionSuccess",
+    event:
+      | "ready"
+      | "messageCreate"
+      | "messageUpdate"
+      | "messageDelete"
+      | "interactionCreate"
+      | "interactionSuccess",
     callback: (message: any) => void
   ) {
     this.on(event, callback);
@@ -493,6 +546,7 @@ export class WsMessage {
       | "ready"
       | "messageCreate"
       | "messageUpdate"
+      | "messageDelete"
       | "interactionSuccess"
       | "interactionCreate",
     message: MJEmit
@@ -593,17 +647,17 @@ export class WsMessage {
       this.waitMjEvents.set(nonce, {
         nonce,
         prompt,
-        onmodal: async (nonce, id) => {
+        onmodal: async (oldnonce, id) => {
           if (onmodal === undefined) {
             // reject(new Error("onmodal is not defined"))
             return "";
           }
-          var nonce = await onmodal(nonce, id);
+          var nonce = await onmodal(oldnonce, id);
           if (nonce === "") {
             // reject(new Error("onmodal return empty nonce"))
             return "";
           }
-          this.removeWaitMjEvent(nonce);
+          this.removeWaitMjEvent(oldnonce);
           this.waitMjEvents.set(nonce, { nonce });
           this.onceImage(nonce, handleImageMessage);
           return nonce;

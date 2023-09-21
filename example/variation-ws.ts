@@ -12,7 +12,7 @@ async function main() {
     ServerId: <string>process.env.SERVER_ID,
     ChannelId: <string>process.env.CHANNEL_ID,
     SalaiToken: <string>process.env.SALAI_TOKEN,
-    // Debug: true,
+    Debug: true,
     Ws: true, //enable ws is required for remix mode
   });
   await client.init(); //init auto enable remix mode
@@ -40,45 +40,61 @@ async function main() {
     },
   });
   console.log("Variation", Variation);
-  client
-    .Variation({
-      index: 2,
-      msgId: <string>Imagine.id,
-      hash: <string>Imagine.hash,
-      flags: Imagine.flags,
-      loading: (uri: string, progress: string) => {
-        console.log("Variation2.loading", uri, "progress", progress);
-      },
-    })
-    .then((msg2) => {
-      console.log({ msg2 });
-    });
-  client
-    .Variation({
-      index: 3,
-      msgId: <string>Imagine.id,
-      hash: <string>Imagine.hash,
-      flags: Imagine.flags,
-      loading: (uri: string, progress: string) => {
-        console.log("Variation3.loading", uri, "progress", progress);
-      },
-    })
-    .then((msg3) => {
-      console.log({ msg3 });
-    });
-  client
-    .Variation({
-      index: 4,
-      msgId: <string>Imagine.id,
-      hash: <string>Imagine.hash,
-      flags: Imagine.flags,
-      loading: (uri: string, progress: string) => {
-        console.log("Variation4.loading", uri, "progress", progress);
-      },
-    })
-    .then((msg4) => {
-      console.log({ msg4 });
-    });
+  if (!Variation) {
+    console.log("no Variation");
+    return;
+  }
+
+  const Upscale = await client.Upscale({
+    index: 2,
+    msgId: <string>Variation.id,
+    hash: <string>Variation.hash,
+    flags: Variation.flags,
+    content: prompt,
+    loading: (uri: string, progress: string) => {
+      console.log("Upscale.loading", uri, "progress", progress);
+    },
+  });
+  console.log("Upscale", Upscale);
+  // client
+  //   .Variation({
+  //     index: 2,
+  //     msgId: <string>Imagine.id,
+  //     hash: <string>Imagine.hash,
+  //     flags: Imagine.flags,
+  //     loading: (uri: string, progress: string) => {
+  //       console.log("Variation2.loading", uri, "progress", progress);
+  //     },
+  //   })
+  //   .then((msg2) => {
+  //     console.log({ msg2 });
+  //   });
+  // client
+  //   .Variation({
+  //     index: 3,
+  //     msgId: <string>Imagine.id,
+  //     hash: <string>Imagine.hash,
+  //     flags: Imagine.flags,
+  //     loading: (uri: string, progress: string) => {
+  //       console.log("Variation3.loading", uri, "progress", progress);
+  //     },
+  //   })
+  //   .then((msg3) => {
+  //     console.log({ msg3 });
+  //   });
+  // client
+  //   .Variation({
+  //     index: 4,
+  //     msgId: <string>Imagine.id,
+  //     hash: <string>Imagine.hash,
+  //     flags: Imagine.flags,
+  //     loading: (uri: string, progress: string) => {
+  //       console.log("Variation4.loading", uri, "progress", progress);
+  //     },
+  //   })
+  //   .then((msg4) => {
+  //     console.log({ msg4 });
+  //   });
 }
 main().catch((err) => {
   console.error(err);

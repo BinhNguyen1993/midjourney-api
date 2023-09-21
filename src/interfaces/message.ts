@@ -7,6 +7,8 @@ export interface MJMessage {
   hash?: string;
   progress?: string;
   options?: MJOptions[];
+  width?: number;
+  height?: number;
 }
 
 export type LoadingHandler = (uri: string, progress: string) => void;
@@ -16,6 +18,7 @@ export interface WaitMjEvent {
   nonce: string;
   prompt?: string;
   id?: string;
+  del?: boolean; // is delete message
   onmodal?: OnModal;
 }
 export interface MJEmit {

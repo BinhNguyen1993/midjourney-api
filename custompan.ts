@@ -2,9 +2,10 @@ import "dotenv/config";
 import { Midjourney } from "../src";
 /**
  *
- * a simple example of how to use the (custom zoom) options with ws command
+ * a simple example of how to use the (custom pan) options with ws command
+ * keep remix turned off in your settings for this to work
  * ```
- * npx tsx example/customzoom.ts
+ * npx tsx example/custompan.ts
  * ```
  */
 async function main() {
@@ -13,7 +14,7 @@ async function main() {
     ChannelId: <string>process.env.CHANNEL_ID,
     SalaiToken: <string>process.env.SALAI_TOKEN,
     Debug: true,
-    Ws: true, //enable ws is required for custom zoom
+    Ws: true, //enable ws is required for custom pan
   });
   await client.init();
   const prompt =
@@ -65,22 +66,22 @@ async function main() {
     return;
   }
   console.log(Upscale);
-  const zoomout = Upscale?.options?.find((o) => o.label === "Custom Zoom");
-  if (!zoomout) {
-    console.log("no zoomout");
+  const panright = Upscale?.options?.find((o) => o.label === "➡️"); // keep remix turned off in your settings for this to work
+  if (!panright) {
+    console.log("no panright");
     return;
   }
-  // Custom Zoom
-  const CustomZoomout = await client.Custom({
+  // Custom Pan
+  const CustomPanRight = await client.Custom({
     msgId: <string>Upscale.id,
     flags: Upscale.flags,
-    content: `${prompt} --zoom 2`,
-    customId: zoomout.custom,
+    content: `${prompt} --pan_right 2`,
+    customId: panright.custom,
     loading: (uri: string, progress: string) => {
       console.log("loading", uri, "progress", progress);
     },
   });
-  console.log("Custom Zoom", CustomZoomout);
+  console.log("Custom Pan", CustomPanRight);
   client.Close();
 }
 main()
