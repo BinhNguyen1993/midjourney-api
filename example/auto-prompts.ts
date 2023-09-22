@@ -97,14 +97,16 @@ async function checkingNewPrompts() {
           if (err) throw err;
           fs.writeFile(savePath, data, async function (err) {
             if (err) throw err;
-            console.log('Image copied to hosting path ' + savePath);           
+            console.log('Image copied to hosting path ' + savePath);         
+            console.log('Hosting URL: ' + imgHostingURL);           
+  
 
             await client.Connect();
             // get Describe for new image
             const Describe = await client.Describe(
               imgHostingURL
             );
-            //console.log(Describe);
+            console.log(Describe);
             if (!Describe) {
               console.log("failed to describe");
             }
@@ -165,7 +167,7 @@ async function checkingNewPrompts() {
   }
 }
 
-const seconds = 5;
+const seconds = 60;
 
 const intervalID = setTimeout(() => {
   try{
